@@ -3,7 +3,7 @@ package org.firstinspires.ftc.teamcode.RobotSystems.Commands.ManipulatorAndSlide
 import org.firstinspires.ftc.teamcode.RobotSystems.Commands.Commands;
 import org.firstinspires.ftc.teamcode.RobotSystems.Subsystems.SubsystemEnums.LinearSlideStage;
 
-public class MoveLinearSlides extends Commands {
+public class MoveLinearSlidesToStage extends Commands {
     LinearSlideStage targetStage = null;
 
     /**
@@ -11,7 +11,7 @@ public class MoveLinearSlides extends Commands {
      *
      * @param targetStage The stage you want the LinearSlides to move to.
      */
-    public MoveLinearSlides(LinearSlideStage targetStage) {
+    public MoveLinearSlidesToStage(LinearSlideStage targetStage) {
         this.targetStage = targetStage;
     }
 

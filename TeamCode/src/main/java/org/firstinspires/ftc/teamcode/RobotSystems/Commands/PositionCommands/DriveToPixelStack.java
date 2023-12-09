@@ -6,7 +6,7 @@ import org.firstinspires.ftc.teamcode.Utility.Autonomous.AutonomousEnums.PixelSt
 import org.firstinspires.ftc.teamcode.Utility.PositionDataTypes.FieldPosition;
 import org.firstinspires.ftc.teamcode.Utility.PositionDataTypes.RobotPosition;
 
-public class DriveToStack extends Commands {
+public class DriveToPixelStack extends Commands {
     // Flag to tell when the command has finished running.
     private boolean finished = false;
     private int path = 0;
@@ -27,7 +27,7 @@ public class DriveToStack extends Commands {
      *             Any other value will cause the robot to drive to the desired position through the
      *             very center of the field.
      */
-    public DriveToStack(int path) {
+    public DriveToPixelStack(int path) {
         this.path = path;
         this.targetPosition = autoParams.getTargetPixelStackPosition();
     }
@@ -51,7 +51,7 @@ public class DriveToStack extends Commands {
      *                         the the robot will just drive to the target pixel stack defined in
      *                         the autoParams provided to the command scheduler .
      */
-    public DriveToStack(int path, PixelStack targetPixelStack) {
+    public DriveToPixelStack(int path, PixelStack targetPixelStack) {
         this.path = path;
         this.targetPosition = targetPixelStack.stackPosition();
     }
@@ -102,7 +102,7 @@ public class DriveToStack extends Commands {
         that we can avoid running into a pole and ruining the entire auto.
          */
         if (robotPosition.x <= 0 && !(Math.abs(robotPosition.y) > 24 && Math.abs(robotPosition.y) < 48) || path == 2) {
-            driveTrain.driveRobotToPosition(new RobotPosition(-48, robotPosition.y, Math.toRadians(90)));
+            driveTrain.driveRobotToPosition(new RobotPosition(-55, robotPosition.y, Math.toRadians(90)));
             return;
         } else if (Math.abs(robotPosition.y) > 24 && Math.abs(robotPosition.y) < 48) {
             driveTrain.driveRobotToPosition(new RobotPosition(24, robotPosition.y, Math.toRadians(90)));
@@ -133,16 +133,16 @@ public class DriveToStack extends Commands {
         // the offset by the directional offset and have it work across both alliances.
         switch (path) {
             case 1:
-                positionOffset = new FieldPosition(-48, -12);
+                positionOffset = new FieldPosition(-55, -12);
                 break;
             case 2:
-                positionOffset = new FieldPosition(-48, -36);
+                positionOffset = new FieldPosition(-55, -36);
                 break;
             case 3:
-                positionOffset = new FieldPosition(-48, -60);
+                positionOffset = new FieldPosition(-55, -60);
                 break;
             default:
-                positionOffset = new FieldPosition(-48, 0);
+                positionOffset = new FieldPosition(-55, 0);
                 break;
         }
 

@@ -30,4 +30,16 @@ public class InputController {
     private double scaleInput(double input) {
         return Math.pow(input, scalingFactor);
     }
+
+    /**
+     * This method helps give the driver more control at slow speeds and adds some acceleration and
+     * deceleration to reduce slippage.
+     *
+     * @param input The value you want to scale and smooth out.
+     * @return Returns the smoothed putout the power of the scaling factor.
+     */
+    public double smoothScaleInput(double input) {
+        double scaledInput = scaleInput(input);
+        return smoothInput(scaledInput);
+    }
 }

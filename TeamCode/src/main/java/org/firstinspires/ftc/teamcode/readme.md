@@ -1,5 +1,3 @@
-# NOTE: THIS DOCUMENTATION IS OUTDATED #
-
 # RobotHardware #
 This class serves as an initializer and access point for all of the hardware components on the robot, such as
 [DriveTrain][1], [LinearSlides][2], [Manipulator][3], and [Vision][4] system. Its purpose is to simplify the process

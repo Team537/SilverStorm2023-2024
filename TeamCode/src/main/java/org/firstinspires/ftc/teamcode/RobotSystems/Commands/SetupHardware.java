@@ -1,6 +1,4 @@
-package org.firstinspires.ftc.teamcode.RobotSystems.Commands.CalibrationCommands;
-
-import org.firstinspires.ftc.teamcode.RobotSystems.Commands.Commands;
+package org.firstinspires.ftc.teamcode.RobotSystems.Commands;
 
 /**
  * SetupHardware command configures the hardware and sets the robot's initial position.
@@ -28,6 +26,9 @@ public class SetupHardware extends Commands {
 
         // Set the robot's position to the starting position obtained from AutoParams.
         robot.driveTrain.coordinateSystem.setRobotPosition(autoParams.getStartingPosition(), rotationalOffset);
+
+        // Close the manipulator so that we can score the starting pixel.
+        robot.manipulator.close();
 
         // Indicate that the command has finished running.
         finished = true;

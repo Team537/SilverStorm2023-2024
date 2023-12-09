@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.OpModes.Teleop.DebugTeleop;
+package org.firstinspires.ftc.teamcode.OpModes.CalibrationOpModes.PIDCalibration;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;

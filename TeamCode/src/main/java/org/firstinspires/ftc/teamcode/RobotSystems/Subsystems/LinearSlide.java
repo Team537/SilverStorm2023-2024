@@ -1,6 +1,5 @@
 package org.firstinspires.ftc.teamcode.RobotSystems.Subsystems;
 
-import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
@@ -9,17 +8,10 @@ import org.firstinspires.ftc.teamcode.RobotSystems.Subsystems.SubsystemEnums.Lin
 
 public class LinearSlide {
 
-    private LinearOpMode myOpMode = null;
-    private DcMotor linearSlide = null;
+    public DcMotor linearSlide = null;
     private LinearSlideStage current_stage = LinearSlideStage.GROUND_STAGE;
     private int targetPosition = 0;
-
-    /**
-     * Give the linear slides access to the OpMode, allowing us to use the HardwareMap and telemetry.
-     *
-     * @param opMode The OpMode that has been passed to the hardware map.
-     */
-    public LinearSlide(LinearOpMode opMode) {this.myOpMode = opMode;}
+    public static final double TICKS_PER_INCH = 97.560;
 
     // Get the opMode so that we can get hardware.
     public void init(HardwareMap hardwareMap, Telemetry telemetry){
@@ -27,18 +19,12 @@ public class LinearSlide {
         // Initialize the hardware variables.
         linearSlide = hardwareMap.get(DcMotor.class, "linearSlide");
 
-        /*
-        Setup linearSlide motor so that we can use encoders.
-
-        Note: We have to set a target position before we can tell the motors to run to a position
-        because if we don't it will error out.
-         */
+        // Setup linearSlide motor so that we can use encoders.
+        // Note: We have to set a target position before we can tell the motors to run to a position
+        // because if we don't it will error out.
         linearSlide.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         linearSlide.setTargetPosition(targetPosition);
         linearSlide.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-
-        // Set the linear slide's zero power behavior to brakes to allow for quicker stopping
-        linearSlide.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         // Tell the user that the linearSlide has been successfully initialized.
         telemetry.addData("->", "Linear Slide Successfully Initialized");
@@ -62,6 +48,25 @@ public class LinearSlide {
         // Move the linear slides to the new slide position.
         targetPosition = current_stage.getPosition();
         linearSlide.setTargetPosition(targetPosition);
+        linearSlide.setPower(1);
+    }
+
+    /**
+     * Given a height in inches, raise the linear slides to the provided height.
+     *
+     * @param height The height in inches that you want to raise the linear slides to.
+     */
+    public void raiseToHeight(double height) {
+
+        // Tell the program that we are using a custom height.
+        current_stage = LinearSlideStage.CUSTOM_STAGE;
+
+        // Convert the height into encoder counts. Then, convert the value to n integer so that we can
+        // run the linear slide's motor to that position.
+        int heightInEncoderCounts = (int) (height * TICKS_PER_INCH);
+
+        // Move the linear slides to the provided position.
+        linearSlide.setTargetPosition((int) heightInEncoderCounts);
         linearSlide.setPower(1);
     }
 }

@@ -1,14 +1,14 @@
-package org.firstinspires.ftc.teamcode.Utility;
+package org.firstinspires.ftc.teamcode.Utility.Controllers;
 
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-public class PIDController {
+public class SingleMotorPIDController {
     private double kp, ki, kd;
     private double accumulatedError, previousError = 0;
     private ElapsedTime timer = new ElapsedTime();
 
     /**
-     * Sets the values for all of the coefficients that will be used to calculate the motor power
+     * Sets the PIDController for all of the coefficients that will be used to calculate the motor power
      * based off of the difference between the reference and currentPosition.
      *
      * @param proportionalCoefficient Helps prevents overshooting the target
@@ -16,7 +16,7 @@ public class PIDController {
      *                            consistently blocking it off.
      * @param derivativeCoefficient Help prevent oscillation (Value changing rapidly back and forth).
      */
-    public PIDController(double proportionalCoefficient, double integralCoefficient, double derivativeCoefficient) {
+    public SingleMotorPIDController(double proportionalCoefficient, double integralCoefficient, double derivativeCoefficient) {
         this.kp = proportionalCoefficient;
         this.ki = integralCoefficient;
         this.kd = derivativeCoefficient;
@@ -28,7 +28,7 @@ public class PIDController {
      * @param pidController The PIDController who's values you want to initialize this PIDController's
      *                      values with.
      */
-    public PIDController(PIDController pidController) {
+    public SingleMotorPIDController(SingleMotorPIDController pidController) {
         this.kp = pidController.getProportionalTerm();
         this.ki = pidController.getIntegralTerm();
         this.kd = pidController.getDerivativeTerm();
@@ -68,11 +68,17 @@ public class PIDController {
         double derivative = (error - previousError) / timer.seconds();
         previousError = error;
 
+        // Reset our accumulatedError when we get to our desired margin of error. (Helps stop the
+        // robot because we will almost never land exactly on our desired direction.
+        if (Math.abs(error) < .1) {
+            accumulatedError = 0;
+        }
+
         // Reset timer so the next time this method is run the calculations are accurate.
         timer.reset();
 
         // Calculate and return the output.
-        return 0.1 * Math.signum(error) + 0.9 * Math.tanh( kp * error + (ki * accumulatedError) + (kd * derivative));
+        return Math.tanh( kp * error + (ki * accumulatedError) + (kd * derivative));
     }
 
     /**

@@ -10,6 +10,16 @@ public class FieldPosition {
     }
 
     /**
+     * Create a FieldPosition with the same values as the provided field position.
+     *
+     * @param position The position who's values you want to clone.
+     */
+    public FieldPosition(FieldPosition position) {
+        this.x = position.x;
+        this.y = position.y;
+    }
+
+    /**
      * This method combines the values of another Vector2 with this vector.
      * Adds the X and Y values from the specified Vector2 to this vector.
      *

@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.Utility;
+package org.firstinspires.ftc.teamcode.Utility.Controllers;
 
 import com.qualcomm.robotcore.util.ElapsedTime;
 
@@ -23,6 +23,16 @@ public class TurnToPIDController {
     }
 
     /**
+     * Resets all of the values used by the PID controller so that the same controller can be used
+     * multiple times.
+     */
+    public void reset() {
+        this.accumulatedError = 0;
+        this.previousError = 0;
+        timer.reset();
+    }
+
+    /**
      * Calculates the motor power based on the difference between the currentPosition and the
      * targetPosition via the use of various tuned values to help account for any disturbances the
      * robot may encounter while turning.
@@ -40,7 +50,7 @@ public class TurnToPIDController {
 
         // Reset our accumulatedError when we get to our desired margin of error. (Helps stop the
         // robot because we will almost never land exactly on our desired direction.
-        if (error < Math.toRadians(1)) {
+        if (Math.abs(error) < 1) {
             accumulatedError = 0;
         }
 

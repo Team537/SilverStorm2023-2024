@@ -6,15 +6,19 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 
 import org.firstinspires.ftc.teamcode.RobotSystems.Subsystems.SubsystemEnums.DriveMode;
+import org.firstinspires.ftc.teamcode.Utility.Controllers.PIDController;
+import org.firstinspires.ftc.teamcode.Utility.FileEx;
 import org.firstinspires.ftc.teamcode.Utility.InputController;
-import org.firstinspires.ftc.teamcode.Utility.PIDController;
-import org.firstinspires.ftc.teamcode.Utility.TurnToPIDController;
+import org.firstinspires.ftc.teamcode.Utility.Controllers.SingleMotorPIDController;
+import org.firstinspires.ftc.teamcode.Utility.PositionDataTypes.FieldPosition;
+import org.firstinspires.ftc.teamcode.Utility.Controllers.TurnToPIDController;
 import org.firstinspires.ftc.teamcode.Utility.PositionDataTypes.RobotPosition;
 
 public class DriveTrain {
     private LinearOpMode myOpMode = null;
     public CoordinateSystem coordinateSystem = null;
     public PIDController pidController = null; // Public so that it can be tuned within an OpMode.
+    private FileEx pidCoefficients = new FileEx("PIDCoefficients.txt");
     private DriveMode current_drive_mode = DriveMode.DEFAULT_DRIVE;
     private DcMotorEx rightFrontDrive = null;
     private DcMotorEx rightBackDrive = null;
@@ -22,7 +26,7 @@ public class DriveTrain {
     private DcMotorEx leftBackDrive = null;
     private boolean fieldCentric = false;
     public static final double STRAFE_OFFSET = 1.1;
-    public static final double maxAutonomousSpeed = 0.8;
+    public static final double MAX_AUTONOMOUS_SPEED = .7;
     public DriveTrain(LinearOpMode opMode) {myOpMode = opMode; }
 
     /**
@@ -66,7 +70,12 @@ public class DriveTrain {
         coordinateSystem.initializeImu(myOpMode.hardwareMap);
 
         // Initialize PID Controller
-        pidController = new PIDController(0.01, 0, 0.003);
+        pidController = new PIDController(0, 0, 0);
+
+        // Set all of the PID coefficients to the values stored in the file.
+        pidController.setKp(pidCoefficients.getValue("kp", Double.class));
+        pidController.setKi(pidCoefficients.getValue("ki", Double.class));
+        pidController.setKd(pidCoefficients.getValue("kd", Double.class));
 
         // Tell the user that this subsystem has been successfully initialized.
         myOpMode.telemetry.addData("->", "DriveTrain successfully initialized");
@@ -98,11 +107,11 @@ public class DriveTrain {
             double robotRotation = coordinateSystem.getPosition().rotation;
 
             // Rotate the values so that the robot can drive in a field centric way.
-            newDriveFrontBack = driveLeftRight * Math.cos(robotRotation) - driveFrontBack * Math.sin(robotRotation);
-            newDriveLeftRight = driveLeftRight * Math.sin(robotRotation) + driveFrontBack * Math.cos(robotRotation);
+            newDriveLeftRight = driveLeftRight * Math.cos(-robotRotation) - driveFrontBack * Math.sin(-robotRotation);
+            newDriveFrontBack = driveLeftRight * Math.sin(-robotRotation) + driveFrontBack * Math.cos(-robotRotation);
         } else {
-            newDriveFrontBack = driveFrontBack;
             newDriveLeftRight = driveLeftRight;
+            newDriveFrontBack = driveFrontBack;
         }
         newRotation = rotation;
 
@@ -154,101 +163,82 @@ public class DriveTrain {
     }
 
     /**
-     * Drives the robot to the specified position and rotation in the coordinate system.
-     *
-     * @param targetPosition The position on the field you want the robot to drive to.
-     */
-    public void driveRobotToPosition(RobotPosition targetPosition) {
-
-        // Convert the target position's rotation to radians.
-        targetPosition.rotation = Math.toRadians(targetPosition.rotation);
-
-        // Get distance to the target from the robot's coordinate system and rotate it relative
-        // to the robot's rotation.
-        RobotPosition targetPositionDistance = coordinateSystem.getDistanceToPosition(targetPosition);
-
-        // Convert the distance to the target position from inches and radians to encoder counts.
-        targetPositionDistance.multiplyBy(CoordinateSystem.TICKS_PER_INCH);
-
-        // Move robot to the rotated position.
-        driveToRelativePosition(targetPositionDistance);
-    }
-
-    /**
      * Moves the robot a specified amount of inches in any direction relative to the robot.
      *
      * @param targetPosition The position you want the robot to move to.
      */
-    public void driveToRelativePosition(RobotPosition targetPosition) {
+    public void driveRobotToPosition(RobotPosition targetPosition) {
 
-        // Get the robot's current position
-        RobotPosition robotPosition = coordinateSystem.getPosition();
+        // Input controller //
+        InputController inputController = new InputController(0.2, 1);
 
-        // Helps prevent slippage through acceleration and deceleration
-        InputController inputController = new InputController(.2, 1);
-        pidController.reset();
+        // Create a PID controller so that we can smoothly rotate the robot and maintain a constant rotation //
+        TurnToPIDController rotationController = new TurnToPIDController(0.02, 0, 0.002);
 
-        // Create a PIDController for each individual motor. (Gives us greater control over each motor)
-        PIDController rightFrontController = new PIDController(pidController);
-        PIDController rightBackController = new PIDController(pidController);
-        PIDController leftFrontController = new PIDController(pidController);
-        PIDController leftBackController = new PIDController(pidController);
+        // Create PID Controllers to smoothly move the robot to the provided target position.
+        PIDController xController = new PIDController(pidController);
+        PIDController yController = new PIDController(pidController);
 
-        // Calculate encoder changes for each individual motor
-        int rightFrontTarget = rightFrontDrive.getCurrentPosition() + (int) (targetPosition.y - targetPosition.x);
-        int rightBackTarget = rightBackDrive.getCurrentPosition() + (int) (targetPosition.y + targetPosition.x);
-        int leftFrontTarget = leftFrontDrive.getCurrentPosition() + (int) (targetPosition.y + targetPosition.x);
-        int leftBackTarget = leftBackDrive.getCurrentPosition() + (int) (targetPosition.y - targetPosition.x);
-
-        // Keep track of each motor's last encoder count in case we have to rotate while moving.
-        int lastRightFront = rightFrontDrive.getCurrentPosition();
-        int lastRightBack = rightBackDrive.getCurrentPosition();
-        int lastLeftFront = leftFrontDrive.getCurrentPosition();
-        int lastLeftBack = leftBackDrive.getCurrentPosition();
+        // Keep track of how close the robot is to the target position
+        // (We use 9999 as a placeholder because we don't want to prematurely stop the loop)
+        double rotationalError = 9999;
+        double xDistance = 9999;
+        double yDistance = 9999;
 
         // Keep moving until each motor is within 6 encoder ticks of their desired position.
-        while (myOpMode.opModeIsActive() &&
-                Math.abs(rightFrontTarget - rightFrontDrive.getCurrentPosition()) > 6 ||
-                Math.abs(rightBackTarget - rightBackDrive.getCurrentPosition()) > 6 ||
-                Math.abs(leftFrontTarget - leftFrontDrive.getCurrentPosition()) > 6 ||
-                Math.abs(leftBackTarget - leftBackDrive.getCurrentPosition()) > 6) {
+        while (myOpMode.opModeIsActive() && ((xDistance > .1 || yDistance > .1) ||
+                Math.abs(rotationalError) > Math.toRadians(1))) {
 
-            // Gives the robot time to accelerate to full speed.
-            double smoothingFactor = inputController.smoothInput(maxAutonomousSpeed);
+            // Update how far we are from the target position
+            FieldPosition distanceVector = coordinateSystem.getDistanceToPosition(targetPosition);
+            xDistance = Math.abs(distanceVector.x);
+            yDistance = Math.abs(distanceVector.y);
 
-            // Calculate each motor's speed based on how close they are to their target position.
-            double rightFrontPower = rightFrontController.update(rightFrontTarget, rightFrontDrive.getCurrentPosition());
-            double rightBackPower = rightBackController.update(rightBackTarget, rightBackDrive.getCurrentPosition());
-            double leftFrontPower = leftFrontController.update(leftFrontTarget, leftFrontDrive.getCurrentPosition());
-            double leftBackPower = leftBackController.update(leftBackTarget, leftBackDrive.getCurrentPosition());
+            // Update the rotational difference
+            rotationalError = coordinateSystem.getDistanceToRotation(targetPosition.rotation);
 
-            // Multiply each power by smoothingFactor to allow for gentle acceleration.
-            rightFrontPower *= smoothingFactor;
-            rightBackPower *= smoothingFactor;
-            leftFrontPower *= smoothingFactor;
-            leftBackPower *= smoothingFactor;
+            // Calculate what % of the maximum autonomous speed the robot should be moving.
+            // (Increases over time)
+            double smoothingFactor = inputController.smoothInput(MAX_AUTONOMOUS_SPEED);
 
-            // Apply the powers to the motors.
+            // Get the robot's position so that we are able to have accurate data for the below calculations.
+            RobotPosition robotPosition = coordinateSystem.getPosition();
+
+            // Calculate the directional powers required to drive in the desired direction.
+            double xPower = xController.update(targetPosition.x, robotPosition.x);
+            double yPower = yController.update(targetPosition.y, robotPosition.y);
+
+            // Rotate the values to account for the robot's rotation.
+            double rotatedXPower = xPower * Math.cos(-robotPosition.rotation) - yPower * Math.sin(-robotPosition.rotation);
+            double rotatedYPower = xPower * Math.sin(-robotPosition.rotation) + yPower * Math.cos(-robotPosition.rotation);
+
+            // Calculate the power required to make the robot rotate in a specified direction.
+            double rotationalPower = -rotationController.update(rotationalError);
+
+            // Multiply all of the power values by the smoothingFactor. This allows us to gradually
+            // accelerate up to max speed.
+            rotatedXPower *= smoothingFactor * STRAFE_OFFSET;
+            rotatedYPower *= smoothingFactor;
+            rotationalPower *= smoothingFactor;
+
+            // Calculate the value that all powers have to be divided by in order to ensure that they
+            // maintain a consistent ratio and can move in the desired direction.
+            double denominator = Math.max(Math.abs(rotatedXPower) + Math.abs(rotatedYPower) + Math.abs(rotationalPower), 1);
+
+            // Calculate the power for each individual motor.
+            double rightFrontPower = (rotatedYPower - rotatedXPower - rotationalPower) / denominator;
+            double rightBackPower = (rotatedYPower + rotatedXPower - rotationalPower) / denominator;
+            double leftFrontPower = (rotatedYPower + rotatedXPower + rotationalPower) / denominator;
+            double leftBackPower = (rotatedYPower - rotatedXPower + rotationalPower) / denominator;
+
+            // Use the pre-existing function to apply the power to the wheels.
             setDrivePower(rightFrontPower, rightBackPower, leftFrontPower, leftBackPower);
 
-            // Update last encoder position.
-            lastRightFront = rightFrontDrive.getCurrentPosition();
-            lastRightBack = rightBackDrive.getCurrentPosition();
-            lastLeftFront = leftFrontDrive.getCurrentPosition();
-            lastLeftBack = leftBackDrive.getCurrentPosition();
-
-            // Make sure the robot is facing within 1 degree of the direction it was facing when it started moving.
-            if (Math.abs(coordinateSystem.getDistanceToRotation(robotPosition.rotation)) < Math.toRadians(1)) {
-
-                // Rotate the robot back into position.
-                rotateTo(robotPosition.rotation);
-
-                // Account for the change in the encoder counts caused by the rotation.
-                rightFrontTarget += rightFrontDrive.getCurrentPosition() - lastRightFront;
-                rightBackTarget += rightBackDrive.getCurrentPosition() - lastRightBack;
-                leftFrontTarget += leftFrontDrive.getCurrentPosition() - lastLeftFront;
-                leftBackTarget += leftBackDrive.getCurrentPosition() - lastLeftBack;
-            }
+            // Display useful data to user:
+            myOpMode.telemetry.addData("X Error: ", xDistance);
+            myOpMode.telemetry.addData("Y Error: ", yDistance);
+            myOpMode.telemetry.addData("X Target: ", targetPosition.x);
+            myOpMode.telemetry.addData("X Target: ", targetPosition.y);
 
             // Update robot's position
             coordinateSystem.updateRobotPosition(
@@ -259,14 +249,8 @@ public class DriveTrain {
             displayRobotPosition();
         }
 
-        // Stop the robot from moving //
         setDrivePower(0, 0, 0, 0);
 
-        // Rotate the robot to the desired position if the robot is not already within 1 degree of
-        // the target's rotation.
-        if (Math.abs(coordinateSystem.getDistanceToRotation(targetPosition.rotation)) < Math.toRadians(1)) {
-            rotateTo(targetPosition.rotation);
-        }
     }
 
     /**
@@ -317,34 +301,39 @@ public class DriveTrain {
     /**
      * Displays what position the robot is currently located at on the field on the Telemetry.
      */
-    private void displayRobotPosition() {
+    public void displayRobotPosition() {
 
         // Get the robot's position
         RobotPosition robotPosition = coordinateSystem.getPosition();
 
         // Convert the robot's rotation to degrees to make it easier for a human to understand.
         double robotRotationDegrees = Math.toDegrees(robotPosition.rotation);
-
+        /*
         // Tell the user their current position.
         myOpMode.telemetry.addLine("---Settings---");
         myOpMode.telemetry.addData("DriveMode: ", current_drive_mode);
         myOpMode.telemetry.addData("Speed Multiplier", current_drive_mode.speedMultiplier());
         myOpMode.telemetry.addData("FieldCentricEnabled", fieldCentric);
+        */
+
 
         myOpMode.telemetry.addLine("---PID Coefficients---");
         myOpMode.telemetry.addData("Kp ", pidController.getProportionalTerm());
         myOpMode.telemetry.addData("Ki ", pidController.getIntegralTerm());
         myOpMode.telemetry.addData("kd ", pidController.getDerivativeTerm());
 
+        myOpMode.telemetry.addLine("---Motor Powers---");
+        myOpMode.telemetry.addData("RF Power:", rightFrontDrive.getPower());
+        myOpMode.telemetry.addData("RB Power:", rightBackDrive.getPower());
+        myOpMode.telemetry.addData("LF Power:", leftFrontDrive.getPower());
+        myOpMode.telemetry.addData("LB Power:", leftBackDrive.getPower());
+
         myOpMode.telemetry.addLine("---Robot Position---");
         myOpMode.telemetry.addData("Robot X", robotPosition.x);
         myOpMode.telemetry.addData("Robot Y", robotPosition.y);
         myOpMode.telemetry.addData("Robot Rotation (Radians)", robotPosition.rotation);
         myOpMode.telemetry.addData("Robot Rotation (Degrees)", robotRotationDegrees);
-
-        myOpMode.telemetry.addLine("---Experimental Values---");
-        myOpMode.telemetry.addData("Encoder-Based rotation in radians ", coordinateSystem.rotationTest);
-        myOpMode.telemetry.addData("Encoder-Based rotation in radians ", Math.toDegrees(coordinateSystem.rotationTest));
+        myOpMode.telemetry.addData("Rotational Offset ", coordinateSystem.rotationalOffset);
 
         myOpMode.telemetry.update();
     }
@@ -371,5 +360,4 @@ public class DriveTrain {
     public void resetIMU() {
         coordinateSystem.resetIMU();
     }
-
 }
