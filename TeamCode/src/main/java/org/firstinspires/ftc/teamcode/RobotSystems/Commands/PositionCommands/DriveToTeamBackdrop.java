@@ -57,7 +57,7 @@ public class DriveToTeamBackdrop extends Commands {
         }
 
         // Raise slides //
-        robot.linearSlide.setStage(LinearSlideStage.LOW_STAGE);
+        // robot.linearSlide.setStage(LinearSlideStage.LOW_STAGE);
 
         // Calculate the direction the robot has to be pointing in in order to be facing the backdrop.
         double desiredRotation = Math.toRadians(-90);

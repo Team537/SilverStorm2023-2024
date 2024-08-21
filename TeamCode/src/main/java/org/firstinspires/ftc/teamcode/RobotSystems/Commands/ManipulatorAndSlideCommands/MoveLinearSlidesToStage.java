@@ -17,7 +17,7 @@ public class MoveLinearSlidesToStage extends Commands {
 
     @Override
     public void run() {
-        robot.linearSlide.setStage(targetStage);
+       //  robot.linearSlide.setStage(targetStage);
     }
 
     @Override

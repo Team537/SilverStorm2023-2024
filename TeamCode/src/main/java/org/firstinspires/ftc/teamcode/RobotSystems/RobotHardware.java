@@ -31,8 +31,8 @@ public class RobotHardware {
         paperAirplaneLauncher = new PaperAirplaneLauncher(myOpMode);
         paperAirplaneLauncher.init();
 
-        vision = new Vision(myOpMode);
-        vision.init();
+        // vision = new Vision(myOpMode);
+        // vision.init();
 
         // Tell the user that the hardware has been initialized.
         myOpMode.telemetry.addData("->", "Hardware Initialized");
